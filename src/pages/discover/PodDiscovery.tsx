@@ -144,7 +144,7 @@ const PodDiscovery = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-24">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="container mx-auto px-4 py-4">
@@ -188,13 +188,7 @@ const PodDiscovery = () => {
       <main className="container mx-auto px-4 py-6">
         {joinedPods.length > 0 && (
           <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-foreground">Your Pods</h2>
-              <Button variant="ghost" size="sm" onClick={() => navigate('/home')}>
-                Go to Feed
-                <ArrowRight className="w-4 h-4 ml-1" />
-              </Button>
-            </div>
+            <h2 className="text-lg font-semibold text-foreground mb-4">Your Pods</h2>
             <div className="flex gap-3 overflow-x-auto pb-2">
               {joinedPods.map((pod) => (
                 <Card
@@ -238,6 +232,23 @@ const PodDiscovery = () => {
           </div>
         )}
       </main>
+
+      {/* Fixed CTA Button at Bottom */}
+      {joinedPods.length > 0 && (
+        <div className="fixed bottom-20 left-0 right-0 z-50 px-4">
+          <div className="container mx-auto max-w-lg">
+            <Button 
+              variant="hero" 
+              size="lg" 
+              className="w-full shadow-lg"
+              onClick={() => navigate('/home')}
+            >
+              Go to Feed
+              <ArrowRight className="w-5 h-5 ml-2" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
