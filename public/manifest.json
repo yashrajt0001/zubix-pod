@@ -1,0 +1,17 @@
+{
+  "name": "StartupPod",
+  "short_name": "StartupPod",
+  "description": "Connect, Collaborate & Grow with the Startup Ecosystem",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f7f8",
+  "theme_color": "#6366f1",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}
