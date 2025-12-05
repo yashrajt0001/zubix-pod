@@ -159,9 +159,19 @@ export interface PodEvent {
 }
 
 // Pitch Types
+export interface PitchReply {
+  id: string;
+  pitchId: string;
+  authorId: string;
+  author: User;
+  content: string;
+  createdAt: Date;
+}
+
 export interface Pitch {
   id: string;
   podId: string;
+  podName?: string;
   founderId: string;
   founder: User;
   startupName: string;
@@ -175,6 +185,7 @@ export interface Pitch {
   contactEmail: string;
   contactPhone: string;
   status: PitchStatus;
+  replies: PitchReply[];
   createdAt: Date;
 }
 
