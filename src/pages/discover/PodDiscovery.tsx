@@ -1,0 +1,305 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { POD_SUBCATEGORIES, Pod, PodSubcategory } from '@/types';
+import { Search, Building2, MapPin, Target, Users, ArrowRight } from 'lucide-react';
+
+// Mock data for pods
+const MOCK_PODS: Pod[] = [
+  {
+    id: '1',
+    name: 'TechStars Bangalore',
+    logo: '',
+    subcategory: 'Accelerator',
+    focusAreas: ['Seed', 'FinTech', 'SaaS'],
+    organisationName: 'TechStars',
+    organisationType: 'Private',
+    operatingCity: 'Bangalore',
+    totalInvestmentSize: '$50M',
+    numberOfInvestments: 120,
+    briefAboutOrganisation: 'A leading startup accelerator program',
+    socialLinks: { linkedin: 'https://linkedin.com' },
+    ownerId: 'owner1',
+    coOwnerIds: [],
+    memberIds: [],
+    isApproved: true,
+    createdAt: new Date(),
+  },
+  {
+    id: '2',
+    name: 'Indian Angel Network',
+    logo: '',
+    subcategory: 'Angel Network',
+    focusAreas: ['Pre-Seed', 'Seed', 'DeepTech'],
+    organisationName: 'IAN',
+    organisationType: 'Private',
+    operatingCity: 'Delhi',
+    totalInvestmentSize: '$100M',
+    numberOfInvestments: 200,
+    briefAboutOrganisation: 'India\'s largest angel investor network',
+    socialLinks: { linkedin: 'https://linkedin.com' },
+    ownerId: 'owner2',
+    coOwnerIds: [],
+    memberIds: [],
+    isApproved: true,
+    createdAt: new Date(),
+  },
+  {
+    id: '3',
+    name: 'NASSCOM 10000 Startups',
+    logo: '',
+    subcategory: 'Incubation',
+    focusAreas: ['Pre-Seed', 'HealthTech', 'CleanTech'],
+    organisationName: 'NASSCOM',
+    organisationType: 'Private',
+    operatingCity: 'Multiple Cities',
+    briefAboutOrganisation: 'India\'s biggest startup incubation program',
+    socialLinks: { linkedin: 'https://linkedin.com' },
+    ownerId: 'owner3',
+    coOwnerIds: [],
+    memberIds: [],
+    isApproved: true,
+    createdAt: new Date(),
+  },
+  {
+    id: '4',
+    name: 'Startup India Hub',
+    logo: '',
+    subcategory: 'Government Program',
+    focusAreas: ['Pre-Seed', 'Seed', 'Social Impact'],
+    organisationName: 'Startup India',
+    organisationType: 'Government',
+    operatingCity: 'Pan India',
+    briefAboutOrganisation: 'Government initiative to support startups',
+    socialLinks: { linkedin: 'https://linkedin.com' },
+    ownerId: 'owner4',
+    coOwnerIds: [],
+    memberIds: [],
+    isApproved: true,
+    createdAt: new Date(),
+  },
+  {
+    id: '5',
+    name: 'Sequoia Surge',
+    logo: '',
+    subcategory: 'Venture Capitalist',
+    focusAreas: ['Seed', 'Series A', 'Consumer', 'Enterprise'],
+    organisationName: 'Sequoia Capital',
+    organisationType: 'Private',
+    operatingCity: 'Bangalore',
+    totalInvestmentSize: '$500M',
+    numberOfInvestments: 50,
+    briefAboutOrganisation: 'Rapid scale-up program for early-stage startups',
+    socialLinks: { linkedin: 'https://linkedin.com' },
+    ownerId: 'owner5',
+    coOwnerIds: [],
+    memberIds: [],
+    isApproved: true,
+    createdAt: new Date(),
+  },
+  {
+    id: '6',
+    name: 'Founder Collective',
+    logo: '',
+    subcategory: 'Community',
+    focusAreas: ['Pre-Seed', 'Seed'],
+    organisationName: 'Founder Collective',
+    organisationType: 'Private',
+    operatingCity: 'Mumbai',
+    briefAboutOrganisation: 'A community of founders helping founders',
+    socialLinks: { linkedin: 'https://linkedin.com' },
+    ownerId: 'owner6',
+    coOwnerIds: [],
+    memberIds: [],
+    isApproved: true,
+    createdAt: new Date(),
+  },
+];
+
+const PodDiscovery = () => {
+  const navigate = useNavigate();
+  const { joinPod, joinedPods } = useAuth();
+  const [selectedSubcategory, setSelectedSubcategory] = useState<PodSubcategory | 'all'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredPods = MOCK_PODS.filter((pod) => {
+    const matchesSubcategory = selectedSubcategory === 'all' || pod.subcategory === selectedSubcategory;
+    const matchesSearch = pod.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      pod.organisationName.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesSubcategory && matchesSearch;
+  });
+
+  const isJoined = (podId: string) => joinedPods.some((p) => p.id === podId);
+
+  const handleJoinPod = (pod: Pod) => {
+    joinPod(pod);
+  };
+
+  const handleViewPod = (podId: string) => {
+    navigate(`/pod/${podId}`);
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
+        <div className="container mx-auto px-4 py-4">
+          <h1 className="text-2xl font-bold text-foreground mb-4">Discover Pods</h1>
+          
+          {/* Search */}
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search pods..."
+              className="pl-10"
+            />
+          </div>
+
+          {/* Subcategory Filter */}
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            <Badge
+              variant={selectedSubcategory === 'all' ? 'default' : 'outline'}
+              className="cursor-pointer whitespace-nowrap"
+              onClick={() => setSelectedSubcategory('all')}
+            >
+              All
+            </Badge>
+            {POD_SUBCATEGORIES.map((cat) => (
+              <Badge
+                key={cat}
+                variant={selectedSubcategory === cat ? 'default' : 'outline'}
+                className="cursor-pointer whitespace-nowrap"
+                onClick={() => setSelectedSubcategory(cat)}
+              >
+                {cat}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      </header>
+
+      {/* Content */}
+      <main className="container mx-auto px-4 py-6">
+        {joinedPods.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-foreground">Your Pods</h2>
+              <Button variant="ghost" size="sm" onClick={() => navigate('/home')}>
+                Go to Feed
+                <ArrowRight className="w-4 h-4 ml-1" />
+              </Button>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2">
+              {joinedPods.map((pod) => (
+                <Card
+                  key={pod.id}
+                  className="min-w-[200px] cursor-pointer card-hover"
+                  onClick={() => handleViewPod(pod.id)}
+                >
+                  <CardContent className="p-4">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3">
+                      <Building2 className="w-5 h-5 text-primary" />
+                    </div>
+                    <p className="font-medium text-foreground truncate">{pod.name}</p>
+                    <p className="text-xs text-muted-foreground">{pod.subcategory}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <h2 className="text-lg font-semibold text-foreground mb-4">
+          {selectedSubcategory === 'all' ? 'All Pods' : selectedSubcategory}
+          <span className="text-muted-foreground font-normal ml-2">({filteredPods.length})</span>
+        </h2>
+
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {filteredPods.map((pod) => (
+            <PodCard
+              key={pod.id}
+              pod={pod}
+              isJoined={isJoined(pod.id)}
+              onJoin={() => handleJoinPod(pod)}
+              onView={() => handleViewPod(pod.id)}
+            />
+          ))}
+        </div>
+
+        {filteredPods.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">No pods found matching your criteria</p>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+};
+
+const PodCard = ({
+  pod,
+  isJoined,
+  onJoin,
+  onView,
+}: {
+  pod: Pod;
+  isJoined: boolean;
+  onJoin: () => void;
+  onView: () => void;
+}) => (
+  <Card className="overflow-hidden card-hover">
+    <CardContent className="p-6">
+      <div className="flex items-start gap-4 mb-4">
+        <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+          <Building2 className="w-7 h-7 text-primary" />
+        </div>
+        <div className="min-w-0">
+          <h3 className="font-semibold text-foreground truncate">{pod.name}</h3>
+          <Badge variant="secondary" className="mt-1">{pod.subcategory}</Badge>
+        </div>
+      </div>
+
+      <div className="space-y-2 mb-4">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <MapPin className="w-4 h-4 shrink-0" />
+          <span className="truncate">{pod.operatingCity}</span>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Target className="w-4 h-4 shrink-0" />
+          <span className="truncate">{pod.focusAreas.slice(0, 3).join(', ')}</span>
+        </div>
+        {pod.numberOfInvestments && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Users className="w-4 h-4 shrink-0" />
+            <span>{pod.numberOfInvestments} investments</span>
+          </div>
+        )}
+      </div>
+
+      <div className="flex gap-2">
+        {isJoined ? (
+          <Button variant="secondary" className="flex-1" onClick={onView}>
+            View Pod
+          </Button>
+        ) : (
+          <>
+            <Button variant="outline" className="flex-1" onClick={onView}>
+              Details
+            </Button>
+            <Button variant="hero" className="flex-1" onClick={onJoin}>
+              Join Pod
+            </Button>
+          </>
+        )}
+      </div>
+    </CardContent>
+  </Card>
+);
+
+export default PodDiscovery;
