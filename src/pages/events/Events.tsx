@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Calendar, MapPin, Clock, Users, Plus, Video, Building2 } from 'lucide-react';
+import { Calendar, MapPin, Clock, Users, Plus, Video, Building2, Ticket } from 'lucide-react';
 import { PodEvent } from '@/types';
 import TopNav from '@/components/layout/TopNav';
 import BottomNav from '@/components/layout/BottomNav';
@@ -30,6 +30,14 @@ const Events = () => {
   const [newEvent, setNewEvent] = useState({ name: '', type: 'online' as 'online' | 'offline', date: '', time: '', location: '', description: '', helpline: '', podId: '' });
 
   const isPodOwner = user?.role === 'pod_owner';
+  const [activeTab, setActiveTab] = useState<'all' | 'registered'>('all');
+
+  // Get registered events
+  const registeredEvents = useMemo(() => {
+    return events
+      .filter((e) => e.registeredUserIds.includes(user?.id || ''))
+      .sort((a, b) => a.date.getTime() - b.date.getTime());
+  }, [events, user?.id]);
 
   // Group events by date and sort in ascending order
   const groupedEvents = useMemo(() => {
@@ -85,62 +93,121 @@ const Events = () => {
           )}
         </div>
 
-        {/* Events grouped by date */}
-        <div className="space-y-6">
-          {groupedEvents.map(({ date, dateKey, events: dayEvents }) => (
-            <div key={dateKey}>
-              {/* Date Header */}
-              <div className="flex items-center gap-3 mb-3">
-                <div className="bg-primary text-primary-foreground rounded-lg px-3 py-2 text-center min-w-[60px]">
-                  <div className="text-lg font-bold">{format(date, 'd')}</div>
-                  <div className="text-xs uppercase">{format(date, 'MMM')}</div>
-                </div>
-                <div>
-                  <div className="font-semibold text-foreground">{format(date, 'EEEE')}</div>
-                  <div className="text-sm text-muted-foreground">{format(date, 'MMMM yyyy')}</div>
-                </div>
-              </div>
-
-              {/* Events for this date */}
-              <div className="space-y-3 ml-[72px]">
-                {dayEvents.map((event) => {
-                  const isRegistered = event.registeredUserIds.includes(user?.id || '');
-                  return (
-                    <Card key={event.id} className="card-hover">
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-3">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${event.type === 'online' ? 'bg-info/10 text-info' : 'bg-accent/10 text-accent'}`}>
-                            {event.type === 'online' ? <Video className="w-5 h-5" /> : <Building2 className="w-5 h-5" />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-2">
-                              <h3 className="font-semibold text-foreground">{event.name}</h3>
-                              <Badge variant="secondary" className="shrink-0">{event.type}</Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{event.description}</p>
-                            <div className="flex flex-wrap gap-3 mt-2 text-sm text-muted-foreground">
-                              <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{event.time}</span>
-                              {event.location && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{event.location}</span>}
-                              <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />{event.registeredUserIds.length}</span>
-                            </div>
-                            <div className="mt-3">
-                              {isRegistered ? <Button variant="secondary" size="sm" disabled>Registered</Button> : <Button variant="hero" size="sm" onClick={() => handleRegister(event.id)}>Register</Button>}
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+        {/* Tabs */}
+        <div className="flex gap-2 mb-6">
+          <Badge
+            variant={activeTab === 'all' ? 'default' : 'outline'}
+            className="cursor-pointer px-4 py-2"
+            onClick={() => setActiveTab('all')}
+          >
+            All Events
+          </Badge>
+          <Badge
+            variant={activeTab === 'registered' ? 'default' : 'outline'}
+            className="cursor-pointer px-4 py-2 flex items-center gap-1"
+            onClick={() => setActiveTab('registered')}
+          >
+            <Ticket className="w-3.5 h-3.5" />
+            My Registrations ({registeredEvents.length})
+          </Badge>
         </div>
 
-        {groupedEvents.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">No upcoming events</p>
+        {/* My Registered Events */}
+        {activeTab === 'registered' && (
+          <div className="space-y-3">
+            {registeredEvents.length === 0 ? (
+              <div className="text-center py-12">
+                <Ticket className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+                <p className="text-muted-foreground">You haven't registered for any events yet</p>
+              </div>
+            ) : (
+              registeredEvents.map((event) => (
+                <Card key={event.id} className="card-hover border-primary/20 bg-primary/5">
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${event.type === 'online' ? 'bg-info/10 text-info' : 'bg-accent/10 text-accent'}`}>
+                        {event.type === 'online' ? <Video className="w-5 h-5" /> : <Building2 className="w-5 h-5" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="font-semibold text-foreground">{event.name}</h3>
+                          <Badge variant="default" className="shrink-0">Registered</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{event.description}</p>
+                        <div className="flex flex-wrap gap-3 mt-2 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{format(event.date, 'MMM d, yyyy')}</span>
+                          <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{event.time}</span>
+                          {event.location && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{event.location}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
+        )}
+
+        {/* All Events grouped by date */}
+        {activeTab === 'all' && (
+          <>
+            <div className="space-y-6">
+              {groupedEvents.map(({ date, dateKey, events: dayEvents }) => (
+                <div key={dateKey}>
+                  {/* Date Header */}
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="bg-primary text-primary-foreground rounded-lg px-3 py-2 text-center min-w-[60px]">
+                      <div className="text-lg font-bold">{format(date, 'd')}</div>
+                      <div className="text-xs uppercase">{format(date, 'MMM')}</div>
+                    </div>
+                    <div>
+                      <div className="font-semibold text-foreground">{format(date, 'EEEE')}</div>
+                      <div className="text-sm text-muted-foreground">{format(date, 'MMMM yyyy')}</div>
+                    </div>
+                  </div>
+
+                  {/* Events for this date */}
+                  <div className="space-y-3 ml-[72px]">
+                    {dayEvents.map((event) => {
+                      const isRegistered = event.registeredUserIds.includes(user?.id || '');
+                      return (
+                        <Card key={event.id} className="card-hover">
+                          <CardContent className="p-4">
+                            <div className="flex items-start gap-3">
+                              <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${event.type === 'online' ? 'bg-info/10 text-info' : 'bg-accent/10 text-accent'}`}>
+                                {event.type === 'online' ? <Video className="w-5 h-5" /> : <Building2 className="w-5 h-5" />}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-2">
+                                  <h3 className="font-semibold text-foreground">{event.name}</h3>
+                                  <Badge variant="secondary" className="shrink-0">{event.type}</Badge>
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{event.description}</p>
+                                <div className="flex flex-wrap gap-3 mt-2 text-sm text-muted-foreground">
+                                  <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{event.time}</span>
+                                  {event.location && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{event.location}</span>}
+                                  <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />{event.registeredUserIds.length}</span>
+                                </div>
+                                <div className="mt-3">
+                                  {isRegistered ? <Button variant="secondary" size="sm" disabled>Registered</Button> : <Button variant="hero" size="sm" onClick={() => handleRegister(event.id)}>Register</Button>}
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {groupedEvents.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">No upcoming events</p>
+              </div>
+            )}
+          </>
         )}
       </main>
       <BottomNav />
