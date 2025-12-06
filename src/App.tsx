@@ -25,6 +25,7 @@ import Profile from "@/pages/profile/Profile";
 import Search from "@/pages/Search";
 import Notifications from "@/pages/Notifications";
 import NotFound from "@/pages/NotFound";
+import Install from "@/pages/Install";
 
 const queryClient = new QueryClient();
 
@@ -66,6 +67,9 @@ const AppRoutes = () => {
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/search" element={<ProtectedRoute><Search /></ProtectedRoute>} />
       <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+
+      {/* Install Page */}
+      <Route path="/install" element={<Install />} />
 
       {/* Catch-all */}
       <Route path="*" element={<NotFound />} />
