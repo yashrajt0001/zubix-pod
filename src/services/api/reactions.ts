@@ -20,7 +20,12 @@ export interface AddReactionRequest {
 export const reactionsApi = {
   addReaction: async (data: AddReactionRequest): Promise<Reaction> => {
     try {
-      const response = await apiClient.post<{ reaction: Reaction }>('/api/reactions', data);
+      // Map entityId to postId or commentId based on entityType
+      const payload = data.entityType === 'post' 
+        ? { postId: data.entityId, type: data.type }
+        : { commentId: data.entityId, type: data.type };
+      
+      const response = await apiClient.post<{ reaction: Reaction }>('/api/reactions', payload);
       return response.data.reaction;
     } catch (error) {
       throw new Error(handleApiError(error));

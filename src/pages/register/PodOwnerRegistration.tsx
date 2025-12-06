@@ -125,9 +125,12 @@ const PodOwnerRegistration = () => {
       }
 
       // Create the pod
+      // Convert subcategory to match backend enum format (e.g., "Venture Capitalist" -> "VENTURE_CAPITALIST")
+      const subcategoryEnum = formData.podSubcategory.toUpperCase().replace(/ /g, '_') as PodSubcategory;
+      
       const podData: CreatePodRequest = {
         name: formData.organisationName,
-        subcategory: formData.podSubcategory as PodSubcategory,
+        subcategory: subcategoryEnum,
         focusAreas: formData.focusAreas,
         organisationName: formData.organisationName,
         organisationType: formData.organisationType === 'Government' ? 'GOVERNMENT' : 'PRIVATE',
