@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Landing from "@/pages/Landing";
 import Login from "@/pages/auth/Login";
 import Signup from "@/pages/auth/Signup";
+import ProfileSetup from "@/pages/auth/ProfileSetup";
 import RoleSelection from "@/pages/auth/RoleSelection";
 import UserRegistration from "@/pages/register/UserRegistration";
 import PodOwnerRegistration from "@/pages/register/PodOwnerRegistration";
@@ -52,6 +53,7 @@ const AppRoutes = () => {
       <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
 
       {/* Auth Flow Routes */}
+      <Route path="/profile-setup" element={<ProtectedRoute><ProfileSetup /></ProtectedRoute>} />
       <Route path="/role-selection" element={<ProtectedRoute><RoleSelection /></ProtectedRoute>} />
       <Route path="/register/user" element={<ProtectedRoute><UserRegistration /></ProtectedRoute>} />
       <Route path="/register/pod-owner" element={<ProtectedRoute><PodOwnerRegistration /></ProtectedRoute>} />

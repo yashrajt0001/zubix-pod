@@ -12,6 +12,7 @@ export interface User {
 
 export interface UserProfile extends User {
   organisationName?: string;
+  profilePicture?: string;
   brandName?: string;
   designation?: string;
   workingExperienceFrom?: Date;
