@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ArrowLeft, Search, Send, MailPlus, Loader2 } from 'lucide-react';
 import { Chat as ChatType, Message, User } from '@/types';
 import { chatApi } from '@/services/api';
+import { socketClient } from '@/services/socket';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -32,6 +33,66 @@ const Chat = () => {
   const [showRequestDialog, setShowRequestDialog] = useState(false);
   const [targetUser, setTargetUser] = useState<User | null>(null);
   const [requestMessage, setRequestMessage] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Connect to socket on mount
+  useEffect(() => {
+    if (user?.id) {
+      try {
+        socketClient.connect();
+      } catch (error) {
+        console.error('Failed to connect to socket:', error);
+      }
+    }
+
+    return () => {
+      // Cleanup: leave current chat if any
+      if (selectedChat?.id) {
+        socketClient.getSocket()?.emit('leave-chat', { chatId: selectedChat.id });
+      }
+    };
+  }, [user?.id]);
+
+  // Handle incoming messages via socket
+  useEffect(() => {
+    const handleNewMessage = (message: Message) => {
+      if (selectedChat?.id === message.chatId) {
+        setMessages(prev => [...prev, message]);
+        // Scroll to bottom
+        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      }
+      
+      // Update chat list to reflect latest message
+      setChats(prevChats => 
+        prevChats.map(chat => 
+          chat.id === message.chatId 
+            ? { ...chat, lastMessage: message, updatedAt: new Date() }
+            : chat
+        ).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      );
+    };
+
+    socketClient.onDirectMessage(handleNewMessage);
+
+    return () => {
+      socketClient.offDirectMessage(handleNewMessage);
+    };
+  }, [selectedChat?.id]);
+
+  // Join chat room when chat is selected
+  useEffect(() => {
+    if (selectedChat?.id) {
+      socketClient.joinChat(selectedChat.id);
+      // Scroll to bottom when messages load
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 100);
+    }
+
+    return () => {
+      if (selectedChat?.id) {
+        socketClient.getSocket()?.emit('leave-chat', { chatId: selectedChat.id });
+      }
+    };
+  }, [selectedChat?.id]);
 
   // Fetch user's chats
   useEffect(() => {
@@ -132,16 +193,17 @@ const Chat = () => {
   const handleSend = async () => {
     if (!newMessage.trim() || !selectedChat?.id) return;
 
+    const content = newMessage.trim();
+    setNewMessage('');
+
     try {
-      const message = await chatApi.sendMessage({
-        chatId: selectedChat.id,
-        content: newMessage
-      });
-      setMessages([...messages, message]);
-      setNewMessage('');
+      // Send via socket for real-time delivery
+      socketClient.sendDirectMessage(selectedChat.id, content);
     } catch (error) {
       console.error('Failed to send message:', error);
       toast.error('Failed to send message');
+      // Restore message on error
+      setNewMessage(content);
     }
   };
 
@@ -176,16 +238,19 @@ const Chat = () => {
               <p className="text-sm text-muted-foreground mt-1">Start the conversation!</p>
             </div>
           ) : (
-            messages.map((msg) => {
-              const isOwn = msg.senderId === user?.id;
-              return (
-                <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[75%] rounded-2xl px-4 py-2 ${isOwn ? 'bg-primary text-primary-foreground rounded-br-md' : 'bg-secondary text-secondary-foreground rounded-bl-md'}`}>
-                    <p className="text-sm">{msg.content}</p>
+            <>
+              {messages.map((msg) => {
+                const isOwn = msg.senderId === user?.id;
+                return (
+                  <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[75%] rounded-2xl px-4 py-2 ${isOwn ? 'bg-primary text-primary-foreground rounded-br-md' : 'bg-secondary text-secondary-foreground rounded-bl-md'}`}>
+                      <p className="text-sm">{msg.content}</p>
+                    </div>
                   </div>
-                </div>
-              );
-            })
+                );
+              })}
+              <div ref={messagesEndRef} />
+            </>
           )}
         </main>
         <div className="sticky bottom-0 bg-background border-t border-border p-4">

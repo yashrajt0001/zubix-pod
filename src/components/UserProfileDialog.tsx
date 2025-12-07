@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { User, UserProfile } from '@/types';
 import { Mail, Phone, Building2, MapPin, Briefcase, Calendar, Linkedin, Instagram, Facebook, Twitter, Youtube, MessageCircle, Clock } from 'lucide-react';
-import { messageRequestApi } from '@/services/api';
+import { messageRequestApi, chatApi } from '@/services/api';
+import { toast } from 'sonner';
 
 interface UserProfileDialogProps {
   user: User | UserProfile | null;
@@ -17,26 +19,40 @@ interface UserProfileDialogProps {
 }
 
 const UserProfileDialog = ({ user, currentUserId, podOwnerId, isOpen, onClose, onMessage }: UserProfileDialogProps) => {
+  const navigate = useNavigate();
   const [hasExistingRequest, setHasExistingRequest] = useState(false);
   const [isCheckingRequest, setIsCheckingRequest] = useState(false);
+  const [existingChatId, setExistingChatId] = useState<string | null>(null);
 
   useEffect(() => {
     const checkExistingRequest = async () => {
       if (!user || !currentUserId || currentUserId === user.id) {
         setHasExistingRequest(false);
+        setExistingChatId(null);
         return;
       }
 
       setIsCheckingRequest(true);
       try {
+        // First check if there's an existing chat
+        const chat = await chatApi.getChatByParticipants([currentUserId, user.id]);
+        if (chat) {
+          setExistingChatId(chat.id);
+          setHasExistingRequest(false);
+          return;
+        }
+
+        // If no chat, check for pending message request
         const requests = await messageRequestApi.getSentRequests(currentUserId);
         const existingRequest = requests.find(
           req => req.receiverId === user.id && req.status === 'PENDING'
         );
         setHasExistingRequest(!!existingRequest);
+        setExistingChatId(null);
       } catch (error) {
         console.error('Failed to check existing request:', error);
         setHasExistingRequest(false);
+        setExistingChatId(null);
       } finally {
         setIsCheckingRequest(false);
       }
@@ -51,6 +67,17 @@ const UserProfileDialog = ({ user, currentUserId, podOwnerId, isOpen, onClose, o
 
   const userProfile = user as UserProfile;
   const hasSocialLinks = userProfile.socialLinks && Object.values(userProfile.socialLinks).some(Boolean);
+
+  const handleMessageClick = () => {
+    if (existingChatId) {
+      // If chat exists, navigate to chat page
+      onClose();
+      navigate('/chat', { state: { chatId: existingChatId } });
+    } else {
+      // If no chat, show send message dialog
+      onMessage?.();
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -178,6 +205,11 @@ const UserProfileDialog = ({ user, currentUserId, podOwnerId, isOpen, onClose, o
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
                   Checking...
                 </Button>
+              ) : existingChatId ? (
+                <Button variant="hero" className="w-full" onClick={handleMessageClick}>
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  Open Chat
+                </Button>
               ) : hasExistingRequest ? (
                 <div className="p-3 bg-primary/5 border border-primary/10 rounded-lg text-center">
                   <Clock className="w-5 h-5 text-primary mx-auto mb-2" />
@@ -187,7 +219,7 @@ const UserProfileDialog = ({ user, currentUserId, podOwnerId, isOpen, onClose, o
                   </p>
                 </div>
               ) : (
-                <Button variant="hero" className="w-full" onClick={onMessage}>
+                <Button variant="hero" className="w-full" onClick={handleMessageClick}>
                   <MessageCircle className="w-4 h-4 mr-2" />
                   Send Message
                 </Button>
