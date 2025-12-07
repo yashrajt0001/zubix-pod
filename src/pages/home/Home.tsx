@@ -13,6 +13,7 @@ import BottomNav from '@/components/layout/BottomNav';
 import TopNav from '@/components/layout/TopNav';
 import PodDetailsDialog from '@/components/PodDetailsDialog';
 import UserProfileDialog from '@/components/UserProfileDialog';
+import SendMessageDialog from '@/components/SendMessageDialog';
 import { postsApi, reactionsApi, uploadApi, commentsApi, Comment } from '@/services/api';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
@@ -28,6 +29,7 @@ const Home = () => {
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [selectedPodForDetails, setSelectedPodForDetails] = useState<Pod | null>(null);
   const [selectedUserForProfile, setSelectedUserForProfile] = useState<User | null>(null);
+  const [showSendMessageDialog, setShowSendMessageDialog] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   // Fetch posts on mount and when pods change
@@ -129,7 +131,11 @@ const Home = () => {
         mediaUrls,
       });
       
-      setPosts([newPost, ...posts]);
+      // Check if post already exists before adding
+      setPosts(prevPosts => {
+        const postExists = prevPosts.some(p => p.id === newPost.id);
+        return postExists ? prevPosts : [newPost, ...prevPosts];
+      });
       setNewPostContent('');
       setMediaFiles([]);
       toast.success('Post created successfully!');
@@ -185,6 +191,35 @@ const Home = () => {
     } catch (error) {
       console.error('Failed to toggle like:', error);
       toast.error('Failed to update like');
+    }
+  };
+
+  const handleShare = async (postId: string) => {
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+
+    const shareData = {
+      title: `Post by ${post.author?.fullName || 'User'}`,
+      text: post.content.substring(0, 100) + (post.content.length > 100 ? '...' : ''),
+      url: `${window.location.origin}/post/${postId}`,
+    };
+
+    try {
+      // Check if Web Share API is available
+      if (navigator.share) {
+        await navigator.share(shareData);
+        toast.success('Shared successfully');
+      } else {
+        // Fallback: Copy link to clipboard
+        await navigator.clipboard.writeText(shareData.url);
+        toast.success('Link copied to clipboard');
+      }
+    } catch (error) {
+      // User cancelled share or clipboard failed
+      if (error instanceof Error && error.name !== 'AbortError') {
+        console.error('Failed to share:', error);
+        toast.error('Failed to share post');
+      }
     }
   };
 
@@ -346,9 +381,11 @@ const Home = () => {
                   key={post.id}
                   post={post}
                   currentUser={user}
+                  joinedPods={joinedPods}
                   onLike={() => handleLike(post.id)}
                   isLiked={post.likes?.includes(user?.id || '') || false}
                   onUserClick={(user) => setSelectedUserForProfile(user)}
+                  onShare={() => handleShare(post.id)}
                 />
               ))}
             </div>
@@ -372,6 +409,7 @@ const Home = () => {
         isJoined={selectedPodForDetails ? joinedPods.some(p => p.id === selectedPodForDetails.id) : false}
         onJoin={() => selectedPodForDetails && joinPod(selectedPodForDetails)}
         onLeave={() => selectedPodForDetails && leavePod(selectedPodForDetails.id)}
+        currentUserId={user?.id}
         onUserClick={(user) => {
           setSelectedPodForDetails(null);
           setSelectedUserForProfile(user);
@@ -381,13 +419,24 @@ const Home = () => {
       {/* User Profile Dialog */}
       <UserProfileDialog
         user={selectedUserForProfile}
+        currentUserId={user?.id}
         isOpen={!!selectedUserForProfile}
         onClose={() => setSelectedUserForProfile(null)}
         onMessage={() => {
           if (selectedUserForProfile) {
-            navigate('/chat', { state: { targetUser: selectedUserForProfile } });
-            setSelectedUserForProfile(null);
+            setShowSendMessageDialog(true);
           }
+        }}
+      />
+
+      {/* Send Message Dialog */}
+      <SendMessageDialog
+        user={selectedUserForProfile}
+        currentUserId={user?.id}
+        isOpen={showSendMessageDialog}
+        onClose={() => {
+          setShowSendMessageDialog(false);
+          setSelectedUserForProfile(null);
         }}
       />
     </div>
@@ -397,15 +446,19 @@ const Home = () => {
 const PostCard = ({
   post,
   currentUser,
+  joinedPods,
   onLike,
   isLiked,
   onUserClick,
+  onShare,
 }: {
   post: Post;
   currentUser: User | null;
+  joinedPods: Pod[];
   onLike: () => void;
   isLiked: boolean;
   onUserClick: (user: User) => void;
+  onShare: () => void;
 }) => {
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -413,6 +466,10 @@ const PostCard = ({
   const [loadingComments, setLoadingComments] = useState(false);
   const [submittingComment, setSubmittingComment] = useState(false);
   const timeAgo = getTimeAgo(post.createdAt);
+
+  // Get pod owner ID
+  const pod = joinedPods.find(p => p.id === post.podId);
+  const podOwnerId = pod?.ownerId;
 
   const handleToggleComments = async () => {
     if (!showComments && comments.length === 0) {
@@ -436,7 +493,9 @@ const PostCard = ({
     setSubmittingComment(true);
     try {
       const comment = await commentsApi.addComment(post.id, { content: newComment });
+      console.log('Added comment:', comment);
       setComments([...comments, comment]);
+      console.log('Updated comments:', [...comments, comment]);
       setNewComment('');
       toast.success('Comment added!');
     } catch (error) {
@@ -490,7 +549,7 @@ const PostCard = ({
             {post.mediaUrls && post.mediaUrls.length > 0 && (
               <div className={`mt-3 grid gap-2 ${post.mediaUrls.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
                 {post.mediaUrls.map((url, index) => (
-                  <div key={index} className="rounded-lg overflow-hidden bg-secondary">
+                  <div key={`${post.id}-media-${index}`} className="rounded-lg overflow-hidden bg-secondary">
                     {url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
                       <img 
                         src={url} 
@@ -526,7 +585,10 @@ const PostCard = ({
                 <MessageCircle className="w-5 h-5" />
                 {comments.length || post.comments?.length || 0}
               </button>
-              <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors">
+              <button 
+                onClick={onShare} 
+                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+              >
                 <Share2 className="w-5 h-5" />
               </button>
             </div>
@@ -548,7 +610,12 @@ const PostCard = ({
                           </Avatar>
                           <div className="flex-1">
                             <div className="bg-secondary rounded-lg px-3 py-2">
-                              <span className="font-medium text-sm">{comment.author?.fullName || 'Unknown'}</span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-medium text-sm">{comment.author?.fullName || 'Unknown'}</span>
+                                {comment.authorId === podOwnerId && (
+                                  <Badge variant="secondary" className="text-xs py-0 px-1.5">Owner</Badge>
+                                )}
+                              </div>
                               <p className="text-sm text-foreground mt-0.5">{comment.content}</p>
                             </div>
                             <p className="text-xs text-muted-foreground mt-1">

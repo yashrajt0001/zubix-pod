@@ -6,8 +6,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, Search, Send, MailPlus } from 'lucide-react';
+import { ArrowLeft, Search, Send, MailPlus, Loader2 } from 'lucide-react';
 import { Chat as ChatType, Message, User } from '@/types';
+import { chatApi } from '@/services/api';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -18,33 +19,67 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
-// Mock accepted chats (only chats where message request was accepted)
-const MOCK_CHATS: ChatType[] = [
-  { id: '1', participantIds: ['user1', 'user2'], participants: [{ id: 'user2', fullName: 'Priya Patel', username: 'priya', email: '', mobile: '', role: 'user', createdAt: new Date() }] as User[], lastMessage: { id: 'm1', chatId: '1', senderId: 'user2', sender: {} as User, content: 'Thanks for connecting!', createdAt: new Date(Date.now() - 3600000) }, updatedAt: new Date() },
-  { id: '2', participantIds: ['user1', 'user3'], participants: [{ id: 'user3', fullName: 'Amit Kumar', username: 'amit', email: '', mobile: '', role: 'pod_owner', createdAt: new Date() }] as User[], lastMessage: { id: 'm2', chatId: '2', senderId: 'user1', sender: {} as User, content: 'Let me know if you need more info', createdAt: new Date(Date.now() - 86400000) }, updatedAt: new Date() },
-];
-
 const Chat = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const [chats, setChats] = useState<ChatType[]>([]);
+  const [isLoadingChats, setIsLoadingChats] = useState(true);
   const [selectedChat, setSelectedChat] = useState<ChatType | null>(null);
-  const [messages, setMessages] = useState<Message[]>([
-    { id: '1', chatId: '1', senderId: 'user2', sender: { fullName: 'Priya Patel' } as User, content: 'Hi! I saw your profile and wanted to connect.', createdAt: new Date(Date.now() - 7200000) },
-    { id: '2', chatId: '1', senderId: 'user1', sender: { fullName: 'You' } as User, content: 'Hey! Great to connect with you.', createdAt: new Date(Date.now() - 3700000) },
-    { id: '3', chatId: '1', senderId: 'user2', sender: { fullName: 'Priya Patel' } as User, content: 'Thanks for connecting!', createdAt: new Date(Date.now() - 3600000) },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [newMessage, setNewMessage] = useState('');
   const [showRequestDialog, setShowRequestDialog] = useState(false);
   const [targetUser, setTargetUser] = useState<User | null>(null);
   const [requestMessage, setRequestMessage] = useState('');
 
-  // Handle direct message from user profile - now shows message request dialog
+  // Fetch user's chats
   useEffect(() => {
+    const fetchChats = async () => {
+      if (!user?.id) return;
+
+      try {
+        setIsLoadingChats(true);
+        const userChats = await chatApi.getUserChats(user.id);
+        setChats(userChats);
+      } catch (error) {
+        console.error('Failed to fetch chats:', error);
+        toast.error('Failed to load chats');
+      } finally {
+        setIsLoadingChats(false);
+      }
+    };
+
+    fetchChats();
+  }, [user?.id]);
+
+  // Handle navigation from message request acceptance or direct chat link
+  useEffect(() => {
+    const chatId = location.state?.chatId as string | undefined;
     const incomingTargetUser = location.state?.targetUser as User | undefined;
-    if (incomingTargetUser) {
+
+    if (chatId && user?.id) {
+      // Load specific chat by ID (from accepted message request)
+      const loadChat = async () => {
+        try {
+          const chat = await chatApi.getChatById(chatId);
+          setSelectedChat(chat);
+          
+          // Also refresh the chats list to include the new chat
+          const userChats = await chatApi.getUserChats(user.id);
+          setChats(userChats);
+        } catch (error) {
+          console.error('Failed to load chat:', error);
+          toast.error('Failed to load chat');
+        }
+      };
+      loadChat();
+      
+      // Clear the navigation state
+      window.history.replaceState({}, document.title);
+    } else if (incomingTargetUser && user?.id) {
       // Check if already have an accepted chat with this user
-      const existingChat = MOCK_CHATS.find(chat => 
+      const existingChat = chats.find(chat => 
         chat.participants.some(p => p.id === incomingTargetUser.id)
       );
       
@@ -56,10 +91,31 @@ const Chat = () => {
         setTargetUser(incomingTargetUser);
         setShowRequestDialog(true);
       }
+      
       // Clear the navigation state
       window.history.replaceState({}, document.title);
     }
-  }, [location.state]);
+  }, [location.state, user?.id, chats]);
+
+  // Load messages when a chat is selected
+  useEffect(() => {
+    const loadMessages = async () => {
+      if (!selectedChat?.id) return;
+
+      try {
+        setIsLoadingMessages(true);
+        const chatMessages = await chatApi.getChatMessages(selectedChat.id);
+        setMessages(chatMessages);
+      } catch (error) {
+        console.error('Failed to load messages:', error);
+        toast.error('Failed to load messages');
+      } finally {
+        setIsLoadingMessages(false);
+      }
+    };
+
+    loadMessages();
+  }, [selectedChat?.id]);
 
   const handleSendRequest = () => {
     if (!requestMessage.trim()) {
@@ -73,35 +129,64 @@ const Chat = () => {
     setTargetUser(null);
   };
 
-  const handleSend = () => {
-    if (!newMessage.trim()) return;
-    setMessages([...messages, { id: crypto.randomUUID(), chatId: selectedChat?.id || '', senderId: user?.id || '', sender: user as User, content: newMessage, createdAt: new Date() }]);
-    setNewMessage('');
+  const handleSend = async () => {
+    if (!newMessage.trim() || !selectedChat?.id) return;
+
+    try {
+      const message = await chatApi.sendMessage({
+        chatId: selectedChat.id,
+        content: newMessage
+      });
+      setMessages([...messages, message]);
+      setNewMessage('');
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      toast.error('Failed to send message');
+    }
   };
 
   // Chat conversation view
   if (selectedChat) {
-    const otherUser = selectedChat.participants[0];
+    const otherUser = selectedChat.participants.find(p => p.id !== user?.id);
+    if (!otherUser) {
+      setSelectedChat(null);
+      return null;
+    }
+    
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
           <div className="flex items-center gap-3 p-4">
             <Button variant="ghost" size="icon" onClick={() => setSelectedChat(null)}><ArrowLeft className="w-5 h-5" /></Button>
-            <Avatar className="w-10 h-10"><AvatarFallback>{otherUser.fullName.charAt(0)}</AvatarFallback></Avatar>
+            <Avatar className="w-10 h-10">
+              <AvatarImage src={otherUser.profilePhoto} />
+              <AvatarFallback>{otherUser.fullName.charAt(0)}</AvatarFallback>
+            </Avatar>
             <div><p className="font-semibold text-foreground">{otherUser.fullName}</p><p className="text-xs text-muted-foreground">@{otherUser.username}</p></div>
           </div>
         </header>
         <main className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.map((msg) => {
-            const isOwn = msg.senderId === user?.id;
-            return (
-              <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[75%] rounded-2xl px-4 py-2 ${isOwn ? 'bg-primary text-primary-foreground rounded-br-md' : 'bg-secondary text-secondary-foreground rounded-bl-md'}`}>
-                  <p className="text-sm">{msg.content}</p>
+          {isLoadingMessages ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">No messages yet</p>
+              <p className="text-sm text-muted-foreground mt-1">Start the conversation!</p>
+            </div>
+          ) : (
+            messages.map((msg) => {
+              const isOwn = msg.senderId === user?.id;
+              return (
+                <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[75%] rounded-2xl px-4 py-2 ${isOwn ? 'bg-primary text-primary-foreground rounded-br-md' : 'bg-secondary text-secondary-foreground rounded-bl-md'}`}>
+                    <p className="text-sm">{msg.content}</p>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </main>
         <div className="sticky bottom-0 bg-background border-t border-border p-4">
           <div className="flex gap-2">
@@ -144,24 +229,39 @@ const Chat = () => {
         </Card>
 
         {/* Accepted chats */}
-        {MOCK_CHATS.length === 0 ? (
+        {isLoadingChats ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        ) : chats.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground">No conversations yet</p>
             <p className="text-sm text-muted-foreground mt-1">Start by sending a message request to someone</p>
           </div>
         ) : (
-          MOCK_CHATS.map((chat) => {
-            const other = chat.participants[0];
+          chats.map((chat) => {
+            const other = chat.participants.find(p => p.id !== user?.id);
+            if (!other) return null;
+            
             return (
               <Card key={chat.id} className="cursor-pointer card-hover" onClick={() => setSelectedChat(chat)}>
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
-                    <Avatar className="w-12 h-12"><AvatarFallback>{other.fullName.charAt(0)}</AvatarFallback></Avatar>
+                    <Avatar className="w-12 h-12">
+                      <AvatarImage src={other.profilePhoto} />
+                      <AvatarFallback>{other.fullName.charAt(0)}</AvatarFallback>
+                    </Avatar>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-foreground">{other.fullName}</p>
-                      <p className="text-sm text-muted-foreground truncate">{chat.lastMessage?.content}</p>
+                      {chat.lastMessage && (
+                        <p className="text-sm text-muted-foreground truncate">{chat.lastMessage.content}</p>
+                      )}
                     </div>
-                    <p className="text-xs text-muted-foreground">{chat.lastMessage?.createdAt.toLocaleDateString()}</p>
+                    {chat.lastMessage && (
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(chat.lastMessage.createdAt).toLocaleDateString()}
+                      </p>
+                    )}
                   </div>
                 </CardContent>
               </Card>

@@ -57,29 +57,43 @@ export interface Pod {
 }
 
 export type PodSubcategory =
-  | 'Incubation'
-  | 'Community'
-  | 'Venture Capitalist'
-  | 'Angel Investor'
-  | 'Angel Network'
-  | 'Service Provider'
-  | 'Accelerator'
-  | 'Corporate Innovation'
-  | 'Government Program'
-  | 'University Entrepreneurship Cell';
+  | 'INCUBATION'
+  | 'COMMUNITY'
+  | 'VENTURE_CAPITALIST'
+  | 'ANGEL_INVESTOR'
+  | 'ANGEL_NETWORK'
+  | 'SERVICE_PROVIDER'
+  | 'ACCELERATOR'
+  | 'CORPORATE_INNOVATION'
+  | 'GOVERNMENT_PROGRAM'
+  | 'UNIVERSITY_ENTREPRENEURSHIP_CELL';
 
 export const POD_SUBCATEGORIES: PodSubcategory[] = [
-  'Incubation',
-  'Community',
-  'Venture Capitalist',
-  'Angel Investor',
-  'Angel Network',
-  'Service Provider',
-  'Accelerator',
-  'Corporate Innovation',
-  'Government Program',
-  'University Entrepreneurship Cell',
+  'INCUBATION',
+  'COMMUNITY',
+  'VENTURE_CAPITALIST',
+  'ANGEL_INVESTOR',
+  'ANGEL_NETWORK',
+  'SERVICE_PROVIDER',
+  'ACCELERATOR',
+  'CORPORATE_INNOVATION',
+  'GOVERNMENT_PROGRAM',
+  'UNIVERSITY_ENTREPRENEURSHIP_CELL',
 ];
+
+// Helper to convert enum to display name
+export const POD_SUBCATEGORY_DISPLAY: Record<PodSubcategory, string> = {
+  'INCUBATION': 'Incubation',
+  'COMMUNITY': 'Community',
+  'VENTURE_CAPITALIST': 'Venture Capitalist',
+  'ANGEL_INVESTOR': 'Angel Investor',
+  'ANGEL_NETWORK': 'Angel Network',
+  'SERVICE_PROVIDER': 'Service Provider',
+  'ACCELERATOR': 'Accelerator',
+  'CORPORATE_INNOVATION': 'Corporate Innovation',
+  'GOVERNMENT_PROGRAM': 'Government Program',
+  'UNIVERSITY_ENTREPRENEURSHIP_CELL': 'University Entrepreneurship Cell',
+};
 
 // Post Types
 export interface Post {
@@ -208,7 +222,7 @@ export interface Chat {
 }
 
 // Message Request Types
-export type MessageRequestStatus = 'pending' | 'accepted' | 'rejected';
+export type MessageRequestStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED';
 
 export interface MessageRequest {
   id: string;

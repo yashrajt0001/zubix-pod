@@ -32,7 +32,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedRole, setSelectedRole] = useState<'user' | 'pod_owner' | null>(null);
   const [pendingPodOwner, setPendingPodOwner] = useState<Partial<Pod> | null>(null);
   const [joinedPods, setJoinedPods] = useState<Pod[]>([]);
@@ -43,7 +43,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const token = getAuthToken();
       if (token && !user) {
         try {
-          setIsLoading(true);
           const userData = await authApi.getCurrentUser();
           setUser({
             ...userData,
@@ -59,6 +58,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         } finally {
           setIsLoading(false);
         }
+      } else {
+        setIsLoading(false);
       }
     };
     

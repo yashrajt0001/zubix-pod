@@ -16,6 +16,7 @@ import PodOwnerRegistration from "@/pages/register/PodOwnerRegistration";
 import PendingApproval from "@/pages/PendingApproval";
 import PodDiscovery from "@/pages/discover/PodDiscovery";
 import Home from "@/pages/home/Home";
+import PostDetail from "@/pages/PostDetail";
 import Rooms from "@/pages/rooms/Rooms";
 import RoomChat from "@/pages/rooms/RoomChat";
 import RoomQA from "@/pages/rooms/RoomQA";
@@ -33,13 +34,37 @@ import Install from "@/pages/Install";
 const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+  
   if (!isAuthenticated) return <Navigate to="/" replace />;
   return <>{children}</>;
 };
 
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+  
   if (isAuthenticated) return <Navigate to="/home" replace />;
   return <>{children}</>;
 };
@@ -62,6 +87,7 @@ const AppRoutes = () => {
       {/* Main App Routes */}
       <Route path="/discover" element={<ProtectedRoute><PodDiscovery /></ProtectedRoute>} />
       <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+      <Route path="/post/:postId" element={<ProtectedRoute><PostDetail /></ProtectedRoute>} />
       <Route path="/rooms" element={<ProtectedRoute><Rooms /></ProtectedRoute>} />
       <Route path="/rooms/:roomId/chat" element={<ProtectedRoute><RoomChat /></ProtectedRoute>} />
       <Route path="/rooms/:roomId/qa" element={<ProtectedRoute><RoomQA /></ProtectedRoute>} />

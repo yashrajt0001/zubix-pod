@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, ArrowRight, Check, Loader2, X, Plus } from 'lucide-react';
-import { POD_SUBCATEGORIES, FOCUS_AREAS, PodSubcategory } from '@/types';
+import { POD_SUBCATEGORIES, POD_SUBCATEGORY_DISPLAY, FOCUS_AREAS, PodSubcategory } from '@/types';
 import { toast } from 'sonner';
 import { podsApi, usersApi, CreatePodRequest, authApi } from '@/services/api';
 
@@ -241,7 +241,7 @@ const PodOwnerRegistration = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {POD_SUBCATEGORIES.map((cat) => (
-                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      <SelectItem key={cat} value={cat}>{POD_SUBCATEGORY_DISPLAY[cat]}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

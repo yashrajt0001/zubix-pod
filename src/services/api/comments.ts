@@ -31,8 +31,8 @@ export const commentsApi = {
    * Add a comment to a post
    */
   async addComment(postId: string, data: CreateCommentRequest): Promise<Comment> {
-    const response = await apiClient.post<Comment>(`/api/posts/${postId}/comments`, data);
-    return response.data;
+    const response = await apiClient.post<{comment: Comment}>(`/api/posts/${postId}/comments`, data);
+    return response.data.comment;
   },
 
   /**
